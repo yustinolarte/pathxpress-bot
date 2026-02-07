@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: pathxpress-bot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_ID
+        sync: false
+      - key: VERIFY_TOKEN
+        sync: false
+      - key: INTERNAL_CONTROL_NUMBER
+        sync: false
+      - key: SUPPORT_NUMBER
+        sync: false
