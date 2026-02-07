@@ -25,12 +25,59 @@ const sendTextMessage = async (to, body) => {
 };
 
 /**
+ * Envía un mensaje de plantilla (Template) para iniciar conversación (Business-Initiated).
+ */
+const sendTemplateMessage = async (to, templateName, languageCode, components) => {
+    try {
+        const response = await axios.post(WHATSAPP_API_URL, {
+            messaging_product: 'whatsapp',
+            to: to,
+            type: 'template',
+            template: {
+                name: templateName,
+                language: { code: languageCode },
+                components: components
+            }
+        }, {
+            headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }
+        });
+        console.log(`Plantilla '${templateName}' enviada a ${to}`);
+        return { success: true, data: response.data };
+    } catch (error) {
+        console.error('Error enviando plantilla:', error.response ? error.response.data : error.message);
+        return { success: false, error: error.response ? error.response.data : error.message };
+    }
+};
+
+/**
  * Envía una solicitud de ubicación al cliente.
  */
 const sendLocationRequest = async (customerName, phoneNumber, orderId) => {
-    const supportNumber = process.env.SUPPORT_NUMBER || process.env.INTERNAL_CONTROL_NUMBER;
-    const message = `👋 Hello ${customerName}, Order #${orderId} confirmed!\n\n📍 *ACTION REQUIRED:*\nPlease share your **Current Location Pin** using the WhatsApp attachment (📎) -> Location button.\n\n⚠️ *IMPORTANT:*\n- Do NOT send written addresses.\n- Do NOT send photos of maps.\n- This bot **ONLY** reads Location Pins.\n\n📞 For support or changes, please contact: ${supportNumber}`;
-    return await sendTextMessage(phoneNumber, message);
+    // Intentamos usar Plantilla (Business-Initiated) si está configurada
+    const templateName = 'order_location_request'; // NOMBRE EXACTO PARA CREAR EN META
+
+    // Componentes para llenar variables {{1}} y {{2}}
+    const components = [
+        {
+            type: 'body',
+            parameters: [
+                { type: 'text', text: customerName }, // {{1}}
+                { type: 'text', text: orderId }       // {{2}}
+            ]
+        }
+    ];
+
+    const result = await sendTemplateMessage(phoneNumber, templateName, 'en_US', components);
+
+    // Si falla la plantilla (ej: no creada aún), fallback a texto simple (solo funciona si hay ventana 24h)
+    if (!result.success) {
+        console.warn('⚠️ Falló el envío de plantilla, intentando texto plano (Fallback)...');
+        const supportNumber = process.env.SUPPORT_NUMBER || process.env.INTERNAL_CONTROL_NUMBER;
+        const message = `👋 Hello ${customerName}, Order #${orderId} confirmed!\n\n📍 *ACTION REQUIRED:*\nPlease share your **Current Location Pin** using the WhatsApp attachment (📎) -> Location button.\n\n⚠️ *IMPORTANT:*\n- Do NOT send written addresses.\n- Do NOT send photos of maps.\n- This bot **ONLY** reads Location Pins.\n\n📞 For support or changes, please contact: ${supportNumber}`;
+        return await sendTextMessage(phoneNumber, message);
+    }
+
+    return result;
 };
 
 /**
