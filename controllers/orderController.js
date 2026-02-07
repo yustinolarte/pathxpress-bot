@@ -1,6 +1,6 @@
 const whatsappService = require('../services/whatsappService');
-
 const followUpService = require('../services/followUpService');
+const orderStateService = require('../services/orderStateService');
 
 /**
  * Maneja la creación de una nueva orden.
@@ -13,6 +13,9 @@ const createOrder = async (req, res) => {
         if (!customer_name || !phone_number || !order_id) {
             return res.status(400).json({ error: 'Faltan datos requeridos (customer_name, phone_number, order_id)' });
         }
+
+        // GUARDAR EN MEMORIA: Vinculamos el teléfono con la orden
+        orderStateService.setOrder(phone_number, order_id);
 
         // Lógica de negocio: Enviar mensaje de solicitud de ubicación
         const whatsappResult = await whatsappService.sendLocationRequest(customer_name, phone_number, order_id);

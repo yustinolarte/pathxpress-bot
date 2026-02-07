@@ -53,14 +53,25 @@ const processWebhook = async (req, res) => {
                             console.log(`Ubicación recibida de ${fromPhone}: ${latitude}, ${longitude}`);
 
                             // Acción A: Reenviar a número interno
-                            // Asumimos Order ID desconocido poque el webhook no trae contexto de sesión en este punto
-                            // En producción, buscaríamos en DB: `db.orders.find({ phone: fromPhone, status: 'pending_location' })`
-                            const simulatedOrderId = 'PENDIENTE_ASIGNACION';
 
-                            await whatsappService.sendInternalLocationForward(latitude, longitude, fromPhone, simulatedOrderId);
+                            // 1. Buscamos en memoria a qué orden pertenece este teléfono
+                            const memoryOrderId = require('../services/orderStateService').getOrder(fromPhone);
+
+                            // 2. Si no existe, usamos fallback
+                            const finalOrderId = memoryOrderId || 'ORDEN_DESCONOCIDA';
+
+                            if (memoryOrderId) {
+                                console.log(`✅ Orden identificada en memoria: ${memoryOrderId}`);
+                                // Opcional: Detener follow-up aquí si tuviéramos persistencia real
+                                require('../services/followUpService').stopFollowUp(memoryOrderId);
+                            } else {
+                                console.log(`⚠️ Orden no encontrada en memoria para ${fromPhone}. Usando ID genérico.`);
+                            }
+
+                            await whatsappService.sendInternalLocationForward(latitude, longitude, fromPhone, finalOrderId);
 
                             // Acción B: Enviar a API de optimización
-                            await routingService.sendToOptimizationAPI(latitude, longitude, simulatedOrderId);
+                            await routingService.sendToOptimizationAPI(latitude, longitude, finalOrderId);
                         } else {
                             // Si envían texto, imagen, etc., respondemos que NO lo entendemos
                             console.log(`Mensaje recibido de tipo ${message.type}. Enviando advertencia de formato...`);
